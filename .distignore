@@ -1,0 +1,11 @@
+/.git
+/.github
+/tests
+/vendor
+composer.json
+composer.lock
+phpunit.xml
+mise.toml
+test-e2e-load.php
+.distignore
+

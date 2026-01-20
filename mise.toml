@@ -1,0 +1,16 @@
+[env]
+# Load environment variables from .env file (gitignored)
+# Copy .env.example to .env and set your test URL
+WP_TEST_URL = "https://ddev.seeingtheforest.net"
+
+[tasks.test]
+description = "Run all tests (unit and e2e)"
+depends = ["test:*"]
+
+[tasks."test:unit"]
+description = "Run unit tests only"
+run = "php vendor/bin/pest tests/Unit"
+
+[tasks."test:e2e"]
+description = "Run E2E tests only (requires running ddev)"
+run = "php vendor/bin/pest tests/E2E"
