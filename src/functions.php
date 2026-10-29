@@ -40,12 +40,13 @@ const DEFAULT_SENSITIVE_ENDPOINTS = array(
  */
 function get_plugin_settings(): array {
 	if ( null === State::$settings_cache ) {
-		$defaults              = array(
-			'trust_same_site'     => false,
-			'bypass_patterns'     => array(),
-			'trusted_origins'     => array(),
-			'sensitive_endpoints' => DEFAULT_SENSITIVE_ENDPOINTS,
-			'log_all_gets'        => true,
+		$defaults = array(
+			'trust_same_site'             => false,
+			'allow_top_level_navigations' => false,
+			'bypass_patterns'             => array(),
+			'trusted_origins'             => array(),
+			'sensitive_endpoints'         => DEFAULT_SENSITIVE_ENDPOINTS,
+			'log_all_gets'                => true,
 		);
 		$saved                 = get_option( 'sec_fetch_csrf_settings', array() );
 		State::$settings_cache = wp_parse_args( $saved, $defaults );

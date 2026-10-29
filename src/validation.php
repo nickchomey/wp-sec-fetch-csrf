@@ -24,6 +24,8 @@ function validate_request(): void {
 	$method         = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET';
 	$uri            = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 	$sec_fetch_site = isset( $_SERVER['HTTP_SEC_FETCH_SITE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) ) : null;
+	$sec_fetch_mode = isset( $_SERVER['HTTP_SEC_FETCH_MODE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_MODE'] ) ) : null;
+	$sec_fetch_dest = isset( $_SERVER['HTTP_SEC_FETCH_DEST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_DEST'] ) ) : null;
 	$origin         = isset( $_SERVER['HTTP_ORIGIN'] ) ? sanitize_url( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : null;
 	$host           = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
 	// phpcs:enable
@@ -61,6 +63,33 @@ function validate_request(): void {
 			// Read requests: only block logged-in users accessing sensitive endpoints.
 			if ( \is_user_logged_in() ) {
 				if ( is_sensitive_endpoint( $uri ) && ! is_request_exempt( $uri, $origin ) ) {
+					// Logout is core's state-changing GET: top-level navigations to
+					// it are never allowed through here.
+					$is_logout = false !== strpos( $uri, 'action=logout' );
+					// Ordinary top-level document navigations (address bar, links,
+					// new tabs, including ones driven by a cross-origin embedder)
+					// are allowed only under the explicit opt-in: no header
+					// distinguishes the operator's own embedder from an
+					// attacker's page, so this stays off unless the site is
+					// deliberately operated through one.
+					$is_top_level_nav    = 'navigate' === $sec_fetch_mode && 'document' === $sec_fetch_dest;
+					// The allowance is development-only: a cross-origin embedder is a
+					// dev-panel shape, and the setting must be inert everywhere else
+					// no matter how it is stored. The function_exists guard fails
+					// closed when the function is unavailable.
+					$development_only    = function_exists( 'wp_get_environment_type' ) && 'development' === wp_get_environment_type();
+					$navigations_allowed = ! $is_logout && $is_top_level_nav && $development_only && get_plugin_settings()['allow_top_level_navigations'];
+					if ( $navigations_allowed ) {
+						log_request(
+							"Cross-site {$method} top-level navigation allowed (opt-in): Sec-Fetch-Site={$sec_fetch_site}",
+							$method,
+							$uri,
+							false
+						);
+						mark_validated();
+
+						return;
+					}
 					block_request(
 						"Cross-site {$method} to sensitive endpoint blocked: Sec-Fetch-Site={$sec_fetch_site}",
 						$method,

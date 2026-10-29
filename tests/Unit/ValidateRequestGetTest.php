@@ -8,6 +8,7 @@
 use function SecFetchCSRF\validate_request;
 use function SecFetchCSRF\is_validated;
 use function Tests\{setup_request, setup_user, mock_settings, mock_allowed_request_behavior, mock_blocking_behavior};
+use Brain\Monkey\Functions;
 
 beforeEach(
 	function () {
@@ -136,6 +137,68 @@ describe(
 				validate_request();
 
 				expect( is_validated() )->toBeTrue();
+			}
+		);
+
+		it(
+			'allows logged-in cross-site top-level navigation when opted in on development',
+			function () {
+				Functions\when( 'wp_get_environment_type' )->justReturn( 'development' );
+				mock_settings( array( 'allow_top_level_navigations' => true ) );
+				setup_request( 'GET', '/wp-admin/update-core.php', 'cross-site', null, 'example.com', 'navigate', 'document' );
+				setup_user( true );
+
+				validate_request();
+
+				expect( is_validated() )->toBeTrue();
+			}
+		);
+
+		it(
+			'still blocks logged-in cross-site top-level navigation when opted in outside development',
+			function () {
+				Functions\when( 'wp_get_environment_type' )->justReturn( 'production' );
+				mock_settings( array( 'allow_top_level_navigations' => true ) );
+				setup_request( 'GET', '/wp-admin/update-core.php', 'cross-site', null, 'example.com', 'navigate', 'document' );
+				setup_user( true );
+
+				expect( fn() => validate_request() )
+				->toThrow( RuntimeException::class, 'blocked' );
+			}
+		);
+
+		it(
+			'still blocks logged-in cross-site top-level navigation when opted out',
+			function () {
+				setup_request( 'GET', '/wp-admin/update-core.php', 'cross-site', null, 'example.com', 'navigate', 'document' );
+				setup_user( true );
+
+				expect( fn() => validate_request() )
+				->toThrow( RuntimeException::class, 'blocked' );
+			}
+		);
+
+		it(
+			'still blocks logout top-level navigation when opted in',
+			function () {
+				mock_settings( array( 'allow_top_level_navigations' => true ) );
+				setup_request( 'GET', '/wp-login.php?action=logout', 'cross-site', null, 'example.com', 'navigate', 'document' );
+				setup_user( true );
+
+				expect( fn() => validate_request() )
+				->toThrow( RuntimeException::class, 'blocked' );
+			}
+		);
+
+		it(
+			'still blocks cross-site subresource reads when opted in',
+			function () {
+				mock_settings( array( 'allow_top_level_navigations' => true ) );
+				setup_request( 'GET', '/wp-admin/admin.php', 'cross-site', null, 'example.com', 'no-cors', 'empty' );
+				setup_user( true );
+
+				expect( fn() => validate_request() )
+				->toThrow( RuntimeException::class, 'blocked' );
 			}
 		);
 	}

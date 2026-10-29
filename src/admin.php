@@ -57,6 +57,14 @@ function sanitize_settings( array $input ): array {
 	$sanitized['trust_same_site'] = ! empty( $input['trust_same_site'] );
 	$sanitized['log_all_gets']    = ! empty( $input['log_all_gets'] );
 
+	// Cross-origin-embedded admin use (operator browser panels, preview
+	// iframes): plain links and new tabs arrive as cross-site top-level
+	// navigations, which the sensitive-endpoint GET block rejects. No header
+	// distinguishes the operator's own embedder from an attacker's page, so
+	// this stays off unless the site is deliberately operated through one.
+	// Writes, subresource reads, and logout GETs keep their verdicts either way.
+	$sanitized['allow_top_level_navigations'] = ! empty( $input['allow_top_level_navigations'] );
+
 	// Bypass patterns (one per line) - handle both string (from form) and array (from re-sanitization).
 	$patterns = isset( $input['bypass_patterns'] ) ? $input['bypass_patterns'] : '';
 	if ( is_array( $patterns ) ) {
@@ -222,6 +230,33 @@ function render_settings_tab(): void {
 						Enable only if you trust all subdomains. Disabled by default for security.
 						<br>Consequence: off breaks cross-subdomain writes (multisite, SSO flows across subdomains);
 						on trusts every subdomain, which is unsafe on shared-domain hosting where attackers can mint their own.
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">Allow Top-Level Navigations</th>
+				<td>
+					<label>
+						<input type="checkbox" name="sec_fetch_csrf_settings[allow_top_level_navigations]"
+							value="1" <?php checked( $settings['allow_top_level_navigations'] ); ?>>
+						Allow logged-in cross-site top-level navigations to sensitive endpoints
+					</label>
+					<?php
+					$sec_fetch_env    = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown';
+					$sec_fetch_active = 'development' === $sec_fetch_env && ! empty( $settings['allow_top_level_navigations'] );
+					?>
+					<p class="description">
+						<strong>Development only.</strong> Use this when the admin is deliberately
+						operated through a cross-origin embedder (an operator browser panel or
+						preview iframe): plain links and new tabs driven from there arrive as
+						cross-site top-level page loads, which the sensitive-endpoint GET block
+						would otherwise reject. No header distinguishes the operator's own
+						embedder from an attacker's page, so outside a development environment
+						this checkbox does nothing — the block stays in force no matter how it
+						is stored. Writes, subresource reads, and logout GETs stay blocked
+						everywhere, always.
+						<br>Current environment: <code><?php echo esc_html( $sec_fetch_env ); ?></code> —
+						allowance currently <strong><?php echo $sec_fetch_active ? 'ACTIVE' : 'INACTIVE'; ?></strong>.
 					</p>
 				</td>
 			</tr>

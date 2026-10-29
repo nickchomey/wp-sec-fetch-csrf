@@ -31,7 +31,9 @@ function setup_request(
 	string $uri,
 	?string $sec_fetch_site = null,
 	?string $origin = null,
-	string $host = 'example.com'
+	string $host = 'example.com',
+	?string $sec_fetch_mode = null,
+	?string $sec_fetch_dest = null
 ): void {
 	$_SERVER['REQUEST_METHOD'] = $method;
 	$_SERVER['REQUEST_URI']    = $uri;
@@ -41,6 +43,18 @@ function setup_request(
 		$_SERVER['HTTP_SEC_FETCH_SITE'] = $sec_fetch_site;
 	} else {
 		unset( $_SERVER['HTTP_SEC_FETCH_SITE'] );
+	}
+
+	if ( null !== $sec_fetch_mode ) {
+		$_SERVER['HTTP_SEC_FETCH_MODE'] = $sec_fetch_mode;
+	} else {
+		unset( $_SERVER['HTTP_SEC_FETCH_MODE'] );
+	}
+
+	if ( null !== $sec_fetch_dest ) {
+		$_SERVER['HTTP_SEC_FETCH_DEST'] = $sec_fetch_dest;
+	} else {
+		unset( $_SERVER['HTTP_SEC_FETCH_DEST'] );
 	}
 
 	if ( null !== $origin ) {

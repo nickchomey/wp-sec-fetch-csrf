@@ -238,6 +238,18 @@ describe(
 						->toThrow( RuntimeException::class, 'blocked' );
 					}
 				);
+
+				it(
+					'still blocks cross-site top-level write when navigations are opted in',
+					function () {
+						mock_settings( array( 'allow_top_level_navigations' => true ) );
+						setup_request( 'POST', '/wp-admin/admin-post.php', 'cross-site', null, 'example.com', 'navigate', 'document' );
+						setup_user( true );
+
+						expect( fn() => validate_request() )
+						->toThrow( RuntimeException::class, 'blocked' );
+					}
+				);
 			}
 		);
 	}
