@@ -60,7 +60,18 @@ function create_table(): void {
 function log_request( string $reason, string $method, string $uri, bool $was_blocked = true ): bool {
 	global $wpdb;
 
+	// Throttle: forged cross-site writes can otherwise churn this table and
+	// its cache invalidations without bound. Drop (don't queue) beyond 200
+	// inserts per rolling 5 minutes; the gate decision is unaffected.
 	$table_name = $wpdb->prefix . TABLE_NAME;
+	$window     = gmdate( 'Y-m-d H:i:s', time() - 300 );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table, intentionally uncached rate check.
+	$recent = (int) $wpdb->get_var(
+		$wpdb->prepare( "SELECT COUNT(*) FROM {$table_name} WHERE blocked_at > %s", $window )
+	);
+	if ( $recent >= 200 ) {
+		return false;
+	}
 
 	$user_id = 0;
 	if ( function_exists( 'get_current_user_id' ) ) {

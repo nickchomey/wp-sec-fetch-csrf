@@ -66,6 +66,21 @@ function sanitize_settings( array $input ): array {
 	}
 	$sanitized['bypass_patterns'] = array_values( $patterns );
 
+	// A bare match-everything pattern silently disarms protection site-wide,
+	// including this settings page. Refuse it loudly instead.
+	foreach ( $sanitized['bypass_patterns'] as $index => $pattern ) {
+		if ( '*' === $pattern || '**' === $pattern ) {
+			unset( $sanitized['bypass_patterns'][ $index ] );
+			add_settings_error(
+				'sec_fetch_csrf_settings',
+				'sec_fetch_csrf_bypass_too_broad',
+				'Refused bypass pattern "' . $pattern . '": it matches every request. Scope webhooks and callbacks to their exact URIs instead.',
+				'error'
+			);
+		}
+	}
+	$sanitized['bypass_patterns'] = array_values( $sanitized['bypass_patterns'] );
+
 	// Trusted origins (one per line) - handle both string (from form) and array (from re-sanitization).
 	$origins = isset( $input['trusted_origins'] ) ? $input['trusted_origins'] : '';
 	if ( is_array( $origins ) ) {
@@ -203,8 +218,10 @@ function render_settings_tab(): void {
 							value="1" <?php checked( $settings['trust_same_site'] ); ?>>
 						Allow requests with <code>Sec-Fetch-Site: same-site</code>
 					</label>
-					<p class="description">
+						<p class="description">
 						Enable only if you trust all subdomains. Disabled by default for security.
+						<br>Consequence: off breaks cross-subdomain writes (multisite, SSO flows across subdomains);
+						on trusts every subdomain, which is unsafe on shared-domain hosting where attackers can mint their own.
 					</p>
 				</td>
 			</tr>
