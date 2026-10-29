@@ -110,6 +110,8 @@ function mock_database(): Mockery\MockInterface {
 	$wpdb         = Mockery::mock( 'wpdb' ); // phpcs:ignore WordPress.Variables.GlobalVariables
 	$wpdb->prefix = 'wp_';
 	$wpdb->shouldReceive( 'insert' )->andReturn( true );
+	$wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
+	$wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
 
 	return $wpdb;
 }

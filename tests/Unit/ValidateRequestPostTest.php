@@ -181,6 +181,63 @@ describe(
 						expect( is_validated() )->toBeTrue();
 					}
 				);
+
+				it(
+					'treats Sec-Fetch-Site case-insensitively',
+					function () {
+						setup_request( 'POST', '/wp-admin/admin-post.php', 'SAME-ORIGIN' );
+						setup_user( true );
+
+						validate_request();
+
+						expect( is_validated() )->toBeTrue();
+					}
+				);
+
+				it(
+					'trims padded Sec-Fetch-Site values before comparing',
+					function () {
+						setup_request( 'POST', '/wp-admin/admin-post.php', ' cross-site ' );
+						setup_user( true );
+
+						expect( fn() => validate_request() )
+						->toThrow( RuntimeException::class, 'blocked' );
+					}
+				);
+
+				it(
+					'blocks none write without Origin',
+					function () {
+						setup_request( 'POST', '/wp-admin/admin-post.php', 'none' );
+						setup_user( true );
+
+						expect( fn() => validate_request() )
+						->toThrow( RuntimeException::class, 'blocked' );
+					}
+				);
+
+				it(
+					'allows none write with matching Origin',
+					function () {
+						setup_request( 'POST', '/wp-admin/admin-post.php', 'none', 'https://example.com', 'example.com' );
+						setup_user( true );
+
+						validate_request();
+
+						expect( is_validated() )->toBeTrue();
+					}
+				);
+
+				it(
+					'blocks none write with mismatched Origin',
+					function () {
+						setup_request( 'POST', '/wp-admin/admin-post.php', 'none', 'https://evil.example', 'example.com' );
+						setup_user( true );
+
+						expect( fn() => validate_request() )
+						->toThrow( RuntimeException::class, 'blocked' );
+					}
+				);
 			}
 		);
 	}

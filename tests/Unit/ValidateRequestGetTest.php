@@ -103,5 +103,40 @@ describe(
 				expect( is_validated() )->toBeTrue();
 			}
 		);
+
+		it(
+			'blocks cross-site logout GET for logged-in user',
+			function () {
+				setup_request( 'GET', '/wp-login.php?action=logout', 'cross-site' );
+				setup_user( true );
+
+				expect( fn() => validate_request() )
+				->toThrow( RuntimeException::class, 'blocked' );
+			}
+		);
+
+		it(
+			'allows cross-site login page GET without logout action for logged-in user',
+			function () {
+				setup_request( 'GET', '/wp-login.php', 'cross-site' );
+				setup_user( true );
+
+				validate_request();
+
+				expect( is_validated() )->toBeTrue();
+			}
+		);
+
+		it(
+			'allows cross-site logout GET for logged-out user',
+			function () {
+				setup_request( 'GET', '/wp-login.php?action=logout', 'cross-site' );
+				setup_user( false );
+
+				validate_request();
+
+				expect( is_validated() )->toBeTrue();
+			}
+		);
 	}
 );
