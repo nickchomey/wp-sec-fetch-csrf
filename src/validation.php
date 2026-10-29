@@ -28,6 +28,14 @@ function validate_request(): void {
 	$host           = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
 	// phpcs:enable
 
+	// Normalize: browsers send lowercase per spec, but proxies may alter case
+	// or pad whitespace. Compare canonically and stay fail-closed on unknown.
+	if ( is_string( $sec_fetch_site ) ) {
+		$sec_fetch_site = strtolower( trim( $sec_fetch_site ) );
+	}
+
+	$is_read_request = in_array( $method, array( 'GET', 'HEAD', 'OPTIONS' ), true );
+
 	// Exempt internal WordPress operations that don't have Sec-Fetch headers.
     // wp-cron.php is triggered internally by WordPress and has no browser headers.
     if ( false !== strpos( $uri, 'wp-cron.php' ) ) {
@@ -37,13 +45,15 @@ function validate_request(): void {
 
 	// Quick exit for same-origin requests (most common case).
 	// No need to load settings or do further checks.
-	if ( 'same-origin' === $sec_fetch_site || 'none' === $sec_fetch_site ) {
+	// 'none' is only ever sent for navigations, never for form submissions or
+	// fetch(), so it fast-paths reads only: none writes fall through to the
+	// Origin check below instead of being trusted unconditionally.
+	if ( 'same-origin' === $sec_fetch_site || ( 'none' === $sec_fetch_site && $is_read_request ) ) {
 		mark_validated();
 		return;
 	}
 
-	$is_read_request = in_array( $method, array( 'GET', 'HEAD', 'OPTIONS' ), true );
-	$is_cross_site   = null !== $sec_fetch_site && ! is_sec_fetch_site_allowed( $sec_fetch_site );
+	$is_cross_site = null !== $sec_fetch_site && ! is_sec_fetch_site_allowed( $sec_fetch_site );
 
 	// Check Sec-Fetch-Site header (primary method).
 	if ( $is_cross_site ) {
@@ -77,11 +87,13 @@ function validate_request(): void {
 		}
 	}
 
-	// Fallback for write requests without Sec-Fetch-Site header.
+	// Fallback for write requests without a trustworthy Sec-Fetch-Site value.
 	// Modern browsers send Sec-Fetch-Site, but we need to handle:
+	// - 'none' (navigations, extensions): never sent for writes, so a write
+	//   claiming it goes through the Origin check instead of being trusted.
 	// - Browsers that don't support Sec-Fetch-Site (use Origin header).
 	// - Non-browser clients (curl, scripts) - no headers at all.
-	if ( ! $is_read_request && null === $sec_fetch_site && ! is_request_exempt( $uri, $origin ) ) {
+	if ( ! $is_read_request && ( null === $sec_fetch_site || 'none' === $sec_fetch_site ) && ! is_request_exempt( $uri, $origin ) ) {
 		if ( null === $origin ) {
 			// No Sec-Fetch-Site AND no Origin - likely non-browser client or legacy browser.
 			block_request(

@@ -23,9 +23,14 @@ const CACHE_GROUP = 'sec_fetch_csrf';
 const ALLOWED_SEC_FETCH_SITE = array( 'same-origin', 'none' );
 
 // Default sensitive endpoints where cross-site read requests should be blocked (for logged-in users).
+// 'action=logout' is matched on the query string: with nonces inert, a
+// cross-site navigation to a logout URL would otherwise log the user out
+// with no protection. All state-changing endpoints must still use non-GET
+// methods; this list only covers the GETs WordPress core itself emits.
 const DEFAULT_SENSITIVE_ENDPOINTS = array(
 	'/wp-admin/',
 	'/wp-json/',
+	'action=logout',
 );
 
 /**

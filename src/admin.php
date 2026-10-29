@@ -217,7 +217,7 @@ function render_settings_tab(): void {
 					<p class="description">
 						<strong>Block cross-site read requests (GET/HEAD/OPTIONS)</strong> to these URI patterns
 						for logged-in users (one per line). Cross-site writes are always blocked regardless of this setting.
-						<br>Default: <code>/wp-admin/</code>, <code>/wp-json/</code>
+						<br>Default: <code>/wp-admin/</code>, <code>/wp-json/</code>, <code>action=logout</code>
 					</p>
 				</td>
 			</tr>
